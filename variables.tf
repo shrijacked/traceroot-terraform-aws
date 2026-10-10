@@ -56,9 +56,9 @@ variable "fargate_profile_namespaces" {
 
 # --- ECR ---
 variable "ecr_image_retention_count" {
-  description = "Number of images (manifests) to keep per ECR repository; older ones are expired by the lifecycle policy. Each push may store more than one manifest."
+  description = "Number of tagged builds to keep per ECR repository; older ones are expired by the lifecycle policy. Counts builds, not manifests: the index, platform image and attestation of one push count once. Keep at least 2 so the build before the running one stays available for rollback."
   type        = number
-  default     = 10
+  default     = 5
 
   validation {
     condition     = var.ecr_image_retention_count >= 1
