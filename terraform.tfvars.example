@@ -104,8 +104,10 @@ cache_node_type = "cache.t4g.micro"
 # rest_replicas   = 1
 # worker_replicas = 1
 
-# Worker pod CPU and memory (Kubernetes quantities; these are the defaults, and each request
-# must not exceed its limit). Raise limits.memory if worker pods are OOMKilled.
+# Worker pod CPU and memory; these are the defaults. CPU is cores with an optional m, u or n
+# suffix ("1", ".5", "250m"); memory is bytes with an optional k, M, G, T, Ki, Mi, Gi or Ti
+# suffix ("512Mi", "1.5Gi"). Each request must not exceed its limit. Raise limits.memory if
+# worker pods are OOMKilled.
 # worker_resources = {
 #   requests = { cpu = "250m", memory = "512Mi" }
 #   limits   = { cpu = "1", memory = "1Gi" }

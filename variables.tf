@@ -352,7 +352,7 @@ variable "worker_replicas" {
 
 # --- Worker resources ---
 variable "worker_resources" {
-  description = "CPU and memory requests and limits for each worker pod, as Kubernetes quantities (e.g. \"250m\", \"1\", \"512Mi\", \"2Gi\"). The default matches the chart's worker defaults."
+  description = "CPU and memory requests and limits for each worker pod. CPU is a number of cores, optionally with an m, u or n suffix (\"1\", \"0.5\", \".5\", \"250m\"). Memory is a number of bytes, optionally with a k, M, G, T, Ki, Mi, Gi or Ti suffix (\"512Mi\", \"1.5Gi\", \"2G\"). Each request must not exceed its limit. The default matches the chart's worker defaults."
   type = object({
     requests = object({
       cpu    = string
@@ -375,34 +375,42 @@ variable "worker_resources" {
   }
   nullable = false
 
+  # A subset of Kubernetes quantity syntax: decimals and the usual suffixes, but
+  # no signs, no exponents, and no P, E, Pi or Ei. Memory rejects m, u and n,
+  # since "512m" is half a byte and almost always a mistake for M or Mi.
   validation {
     condition = alltrue([
       for q in [var.worker_resources.requests.cpu, var.worker_resources.limits.cpu] :
-      can(regex("^([0-9]+m|[0-9]+([.][0-9]+)?)$", q))
+      can(regex("^(?:[0-9]+[.]?[0-9]*|[.][0-9]+)(?:m|u|n)?$", q))
     ])
-    error_message = "worker_resources CPU values must be Kubernetes CPU quantities, such as \"250m\", \"1\" or \"1.5\"."
+    error_message = "worker_resources CPU values must be a number of cores, optionally with an m, u or n suffix, such as \"1\", \"1.5\", \".5\" or \"250m\"."
   }
 
   validation {
     condition = alltrue([
       for q in [var.worker_resources.requests.memory, var.worker_resources.limits.memory] :
-      can(regex("^[0-9]+(k|M|G|T|Ki|Mi|Gi|Ti)?$", q))
+      can(regex("^(?:[0-9]+[.]?[0-9]*|[.][0-9]+)(?:k|M|G|T|Ki|Mi|Gi|Ti)?$", q))
     ])
-    error_message = "worker_resources memory values must be Kubernetes memory quantities, such as \"512Mi\" or \"2Gi\"."
+    error_message = "worker_resources memory values must be a number of bytes, optionally with a k, M, G, T, Ki, Mi, Gi or Ti suffix, such as \"512Mi\", \"1.5Gi\" or \"2G\"."
   }
 
-  # Kubernetes rejects a pod whose request is above its limit. Each pair is
-  # converted to a plain number (CPU cores, memory bytes) and compared; values
-  # the checks above reject are left to those checks.
+  # Kubernetes rejects a pod whose request is above its limit. Each value is
+  # converted to billionths of a core or byte and rounded to a whole number, so
+  # two spellings of one amount (".3" and "300m") compare equal despite binary
+  # floating point. The parse accepts exactly what the checks above accept, so a
+  # value they reject fails to parse here and is reported only by them.
   validation {
     condition = try(alltrue([
       for pair in [
-        for k in ["cpu", "memory"] : [
-          for q in [var.worker_resources.requests[k], var.worker_resources.limits[k]] :
-          tonumber(regex("^[0-9.]+", q)) * {
-            "" = 1, m = 0.001, k = 1e3, M = 1e6, G = 1e9, T = 1e12,
-            Ki = 1024, Mi = 1048576, Gi = 1073741824, Ti = 1099511627776,
-          }[regex("[A-Za-z]*$", q)]
+        for kind in ["cpu", "memory"] : [
+          for q in [var.worker_resources.requests[kind], var.worker_resources.limits[kind]] :
+          floor(tonumber(regex("^([0-9]+[.]?[0-9]*|[.][0-9]+)[A-Za-z]*$", q)[0]) * {
+            cpu = { "" = 1e9, m = 1e6, u = 1e3, n = 1 }
+            memory = {
+              "" = 1e9, k = 1e12, M = 1e15, G = 1e18, T = 1e21,
+              Ki = 1024e9, Mi = 1048576e9, Gi = 1073741824e9, Ti = 1099511627776e9,
+            }
+          }[kind][regex("^(?:[0-9]+[.]?[0-9]*|[.][0-9]+)([A-Za-z]*)$", q)[0]] + 0.5)
         ]
       ] : pair[0] <= pair[1]
     ]), true)
