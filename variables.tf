@@ -350,6 +350,66 @@ variable "worker_replicas" {
   default     = 1
 }
 
+# --- Worker resources ---
+variable "worker_resources" {
+  description = "CPU and memory requests and limits for each worker pod, as Kubernetes quantities (e.g. \"250m\", \"1\", \"512Mi\", \"2Gi\"). The default matches the chart's worker defaults."
+  type = object({
+    requests = object({
+      cpu    = string
+      memory = string
+    })
+    limits = object({
+      cpu    = string
+      memory = string
+    })
+  })
+  default = {
+    requests = {
+      cpu    = "250m"
+      memory = "512Mi"
+    }
+    limits = {
+      cpu    = "1"
+      memory = "1Gi"
+    }
+  }
+  nullable = false
+
+  validation {
+    condition = alltrue([
+      for q in [var.worker_resources.requests.cpu, var.worker_resources.limits.cpu] :
+      can(regex("^([0-9]+m|[0-9]+([.][0-9]+)?)$", q))
+    ])
+    error_message = "worker_resources CPU values must be Kubernetes CPU quantities, such as \"250m\", \"1\" or \"1.5\"."
+  }
+
+  validation {
+    condition = alltrue([
+      for q in [var.worker_resources.requests.memory, var.worker_resources.limits.memory] :
+      can(regex("^[0-9]+(k|M|G|T|Ki|Mi|Gi|Ti)?$", q))
+    ])
+    error_message = "worker_resources memory values must be Kubernetes memory quantities, such as \"512Mi\" or \"2Gi\"."
+  }
+
+  # Kubernetes rejects a pod whose request is above its limit. Each pair is
+  # converted to a plain number (CPU cores, memory bytes) and compared; values
+  # the checks above reject are left to those checks.
+  validation {
+    condition = try(alltrue([
+      for pair in [
+        for k in ["cpu", "memory"] : [
+          for q in [var.worker_resources.requests[k], var.worker_resources.limits[k]] :
+          tonumber(regex("^[0-9.]+", q)) * {
+            "" = 1, m = 0.001, k = 1e3, M = 1e6, G = 1e9, T = 1e12,
+            Ki = 1024, Mi = 1048576, Gi = 1073741824, Ti = 1099511627776,
+          }[regex("[A-Za-z]*$", q)]
+        ]
+      ] : pair[0] <= pair[1]
+    ]), true)
+    error_message = "worker_resources requests must not exceed the matching limits."
+  }
+}
+
 # --- ALB ---
 variable "alb_scheme" {
   description = "ALB scheme: internet-facing or internal"

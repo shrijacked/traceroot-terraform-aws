@@ -50,11 +50,11 @@ worker:
   replicas: ${var.worker_replicas}
   resources:
     requests:
-      cpu: "250m"
-      memory: "512Mi"
+      cpu: "${var.worker_resources.requests.cpu}"
+      memory: "${var.worker_resources.requests.memory}"
     limits:
-      cpu: "1"
-      memory: "1Gi"
+      cpu: "${var.worker_resources.limits.cpu}"
+      memory: "${var.worker_resources.limits.memory}"
 
 billing:
   image:

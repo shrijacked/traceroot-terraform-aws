@@ -65,6 +65,21 @@ configuration per bucket, so applying the module replaces any lifecycle rule set
 whether in the console, with the AWS CLI or by another `aws_s3_bucket_lifecycle_configuration`.
 To keep a custom rule, add it to `aws_s3_bucket_lifecycle_configuration.traceroot` in `s3.tf`.
 
+## Worker resources
+
+`worker_resources` sets the CPU and memory requests and limits of each worker pod. The default
+matches the chart's worker defaults: requests of 250m CPU and 512Mi memory, and limits of 1 CPU
+and 1Gi memory. Raise the memory limit if worker pods are restarted with `OOMKilled`:
+
+```hcl
+worker_resources = {
+  requests = { cpu = "250m", memory = "512Mi" }
+  limits   = { cpu = "1", memory = "2Gi" }
+}
+```
+
+Set all four values. They are Kubernetes quantities, and each request must not exceed its limit.
+
 ## Requirements
 
 | | |
