@@ -67,34 +67,21 @@ To keep a custom rule, add it to `aws_s3_bucket_lifecycle_configuration.traceroo
 
 ## Worker resources
 
-`worker_resources` sets the CPU and memory requests and limits of each worker pod. The default
-matches the chart's worker defaults: requests of 250m CPU and 512Mi memory, and limits of 1 CPU
-and 1Gi memory. Raise the memory limit if worker pods are restarted with `OOMKilled`:
+`worker_resources` sets the CPU and memory requests and limits of each worker pod. Raise the
+memory limit if worker pods are restarted with `OOMKilled`:
 
 ```hcl
 module "traceroot" {
   # ...
 
   worker_resources = {
-    requests = { cpu = "250m", memory = "512Mi" }
-    limits   = { cpu = "1", memory = "2Gi" }
+    limits = { memory = "2Gi" }
   }
 }
 ```
 
-When you apply this repository directly with a `.tfvars` file, put the same `worker_resources`
-assignment at the top level of that file instead.
-
-Set all four values, and keep each request at or below its limit. The values use a subset of
-Kubernetes quantity syntax:
-
-- **CPU:** a number of cores, optionally with an `m`, `u` or `n` suffix: `1`, `1.5`, `.5`,
-  `250m`.
-- **Memory:** a number of bytes, optionally with a `k`, `M`, `G`, `T`, `Ki`, `Mi`, `Gi` or `Ti`
-  suffix: `512Mi`, `1.5Gi`, `2G`.
-
-Signs, exponents (`1e3`), the `P`, `E`, `Pi` and `Ei` suffixes, and `m`, `u` or `n` on memory
-are rejected at plan.
+In a `.tfvars` file, put the same assignment at the top level. The defaults and accepted values
+are in [`variables.tf`](variables.tf).
 
 ## Requirements
 
