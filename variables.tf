@@ -109,14 +109,14 @@ variable "ingest_failed_expiration_days" {
   }
 }
 
-variable "noncurrent_version_expiration_days" {
+variable "ingest_noncurrent_version_expiration_days" {
   description = "Days to keep every noncurrent version of an object under events/ingest/ or events/failed/ in the S3 bucket, whether the object expired, was deleted or was overwritten. The bucket is versioned, so an expired or deleted batch's data is only removed when its noncurrent version expires."
   type        = number
   default     = 1
 
   validation {
-    condition     = var.noncurrent_version_expiration_days >= 1 && floor(var.noncurrent_version_expiration_days) == var.noncurrent_version_expiration_days
-    error_message = "noncurrent_version_expiration_days must be a whole number of days, at least 1."
+    condition     = var.ingest_noncurrent_version_expiration_days >= 1 && floor(var.ingest_noncurrent_version_expiration_days) == var.ingest_noncurrent_version_expiration_days
+    error_message = "ingest_noncurrent_version_expiration_days must be a whole number of days, at least 1."
   }
 }
 

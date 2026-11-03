@@ -43,11 +43,11 @@ cache_node_type = "cache.t4g.micro"
 
 # S3 lifecycle
 # Days before staged and failed ingest batches expire
-# ingest_batch_expiration_days       = 7
-# ingest_failed_expiration_days      = 30
+# ingest_batch_expiration_days              = 7
+# ingest_failed_expiration_days             = 30
 # Days to keep every noncurrent version under events/ingest/ or events/failed/ before it is
 # removed, whether its object expired, was deleted or was overwritten
-# noncurrent_version_expiration_days = 1
+# ingest_noncurrent_version_expiration_days = 1
 
 # Custom domain (leave empty to use ALB URL)
 # Staging example:  domain = "staging.traceroot.ai"

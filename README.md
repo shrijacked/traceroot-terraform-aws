@@ -39,31 +39,12 @@ rest, and never commit `.tfvars` or state files.
 
 ## S3 lifecycle
 
-The bucket is versioned, and lifecycle rules expire two ingest prefixes:
+The bucket's lifecycle rules expire staged and failed ingest batches. The prefixes, windows and
+defaults are in the `ingest_*_expiration_days` inputs in [`variables.tf`](variables.tf).
 
-| Prefix | Expires after | Input |
-|---|---|---|
-| `events/ingest/` (staged ingest batches) | 7 days | `ingest_batch_expiration_days` |
-| `events/failed/` (batches that failed processing) | 30 days | `ingest_failed_expiration_days` |
-
-Every noncurrent version under those prefixes is removed after 1 day
-(`noncurrent_version_expiration_days`), whether its object expired, was deleted or was
-overwritten, so no older version is kept there longer than that. The delete marker an expired
-or deleted object leaves behind is then cleaned up.
-Incomplete multipart uploads under `events/ingest/` are aborted after 1 day.
-
-Only `events/ingest/` and `events/failed/` expire. Everything else in the bucket is kept,
-including any batches under `events/otel/`.
-
-Ages count from when each object was written (for a noncurrent version, from when it became
-noncurrent), not from when the rules were applied. An object already under `events/ingest/` or
-`events/failed/` and older than its window when the rules are first applied expires shortly
-after the apply, not 7 or 30 days later.
-
-This module manages the bucket's whole lifecycle configuration. S3 keeps one lifecycle
-configuration per bucket, so applying the module replaces any lifecycle rule set outside it,
-whether in the console, with the AWS CLI or by another `aws_s3_bucket_lifecycle_configuration`.
-To keep a custom rule, add it to `aws_s3_bucket_lifecycle_configuration.traceroot` in `s3.tf`.
+S3 keeps one lifecycle configuration per bucket, so applying the module replaces any lifecycle
+rule set outside Terraform. To keep a custom rule, add it to
+`aws_s3_bucket_lifecycle_configuration.traceroot` in `s3.tf`.
 
 ## Requirements
 
