@@ -86,6 +86,40 @@ variable "cache_node_type" {
   default     = "cache.t4g.micro"
 }
 
+# --- S3 ---
+variable "ingest_batch_expiration_days" {
+  description = "Days to keep staged ingest batches (objects under events/ingest/ in the S3 bucket) before they expire. Objects under events/otel/ are not expired."
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.ingest_batch_expiration_days >= 1 && floor(var.ingest_batch_expiration_days) == var.ingest_batch_expiration_days
+    error_message = "ingest_batch_expiration_days must be a whole number of days, at least 1."
+  }
+}
+
+variable "ingest_failed_expiration_days" {
+  description = "Days to keep ingest batches that failed processing (objects under events/failed/ in the S3 bucket) before they expire."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.ingest_failed_expiration_days >= 1 && floor(var.ingest_failed_expiration_days) == var.ingest_failed_expiration_days
+    error_message = "ingest_failed_expiration_days must be a whole number of days, at least 1."
+  }
+}
+
+variable "ingest_noncurrent_version_expiration_days" {
+  description = "Days to keep every noncurrent version of an object under events/ingest/ or events/failed/ in the S3 bucket, whether the object expired, was deleted or was overwritten. The bucket is versioned, so an expired or deleted batch's data is only removed when its noncurrent version expires."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.ingest_noncurrent_version_expiration_days >= 1 && floor(var.ingest_noncurrent_version_expiration_days) == var.ingest_noncurrent_version_expiration_days
+    error_message = "ingest_noncurrent_version_expiration_days must be a whole number of days, at least 1."
+  }
+}
+
 # --- Helm ---
 variable "traceroot_helm_chart_repository" {
   description = "Helm repository serving the TraceRoot chart"
@@ -314,6 +348,60 @@ variable "worker_replicas" {
   description = "Number of Celery worker replicas"
   type        = number
   default     = 1
+}
+
+# --- Worker resources ---
+variable "worker_resources" {
+  description = "CPU and memory requests and limits for each worker pod. A value left out keeps its default, which matches the chart's worker defaults. CPU is whole cores or millicores (\"1\", \"250m\"). Memory is a whole number of Mi or Gi (\"512Mi\", \"2Gi\"), so 1.5Gi is written \"1536Mi\". Each request must not exceed its limit."
+  type = object({
+    requests = optional(object({
+      cpu    = optional(string, "250m")
+      memory = optional(string, "512Mi")
+    }), {})
+    limits = optional(object({
+      cpu    = optional(string, "1")
+      memory = optional(string, "1Gi")
+    }), {})
+  })
+  default  = {}
+  nullable = false
+
+  validation {
+    condition = alltrue([
+      for q in [var.worker_resources.requests.cpu, var.worker_resources.limits.cpu] :
+      can(regex("^[0-9]+m?$", q))
+    ])
+    error_message = "worker_resources CPU values must be whole cores or millicores, such as \"1\" or \"250m\"."
+  }
+
+  validation {
+    condition = alltrue([
+      for q in [var.worker_resources.requests.memory, var.worker_resources.limits.memory] :
+      can(regex("^[0-9]+(Mi|Gi)$", q))
+    ])
+    error_message = "worker_resources memory values must be a whole number of Mi or Gi, such as \"512Mi\" or \"2Gi\"."
+  }
+
+  # Kubernetes rejects a pod whose request is above its limit. CPU is compared in
+  # millicores and memory in MiB, so both sides are whole numbers. A value the
+  # checks above reject becomes -1 and its pair is skipped, so it is reported once,
+  # by its format check. A value they accept is parsed with no fallback, so a
+  # parse failure is an error rather than a pass.
+  validation {
+    condition = alltrue([
+      for pair in [
+        [
+          for q in [var.worker_resources.requests.cpu, var.worker_resources.limits.cpu] :
+          can(regex("^[0-9]+m?$", q)) ? tonumber(trimsuffix(q, "m")) * (endswith(q, "m") ? 1 : 1000) : -1
+        ],
+        [
+          for q in [var.worker_resources.requests.memory, var.worker_resources.limits.memory] :
+          can(regex("^[0-9]+(Mi|Gi)$", q)) ? tonumber(trimsuffix(trimsuffix(q, "Gi"), "Mi")) * (endswith(q, "Gi") ? 1024 : 1) : -1
+        ],
+      ] : contains(pair, -1) || pair[0] <= pair[1]
+    ])
+    error_message = "worker_resources requests must not exceed the matching limits."
+  }
 }
 
 # --- ALB ---

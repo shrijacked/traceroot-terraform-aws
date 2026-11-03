@@ -10,7 +10,7 @@ ALB ingress, then installs the
 
 ```hcl
 module "traceroot" {
-  source = "github.com/traceroot-ai/traceroot-terraform-aws?ref=v1.0.0"
+  source = "github.com/traceroot-ai/traceroot-terraform-aws?ref=v1.6.0"
 
   environment = "production"
   name        = "traceroot-production"
@@ -36,6 +36,33 @@ Values you supply — Stripe, GitHub App, LLM provider keys — are passed as va
 
 Terraform state therefore contains secret material. Use a remote backend with encryption at
 rest, and never commit `.tfvars` or state files.
+
+## S3 lifecycle
+
+The bucket's lifecycle rules expire staged and failed ingest batches. The prefixes, windows and
+defaults are in the `ingest_*_expiration_days` inputs in [`variables.tf`](variables.tf).
+
+S3 keeps one lifecycle configuration per bucket, so applying the module replaces any lifecycle
+rule set outside Terraform. To keep a custom rule, add it to
+`aws_s3_bucket_lifecycle_configuration.traceroot` in `s3.tf`.
+
+## Worker resources
+
+`worker_resources` sets the CPU and memory requests and limits of each worker pod. Raise the
+memory limit if worker pods are restarted with `OOMKilled`:
+
+```hcl
+module "traceroot" {
+  # ...
+
+  worker_resources = {
+    limits = { memory = "2Gi" }
+  }
+}
+```
+
+In a `.tfvars` file, put the same assignment at the top level. The defaults and accepted values
+are in [`variables.tf`](variables.tf).
 
 ## Requirements
 

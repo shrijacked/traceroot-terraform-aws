@@ -41,6 +41,14 @@ postgres_max_capacity = 2.0
 # ElastiCache
 cache_node_type = "cache.t4g.micro"
 
+# S3 lifecycle
+# Days before staged and failed ingest batches expire
+# ingest_batch_expiration_days              = 7
+# ingest_failed_expiration_days             = 30
+# Days to keep every noncurrent version under events/ingest/ or events/failed/ before it is
+# removed, whether its object expired, was deleted or was overwritten
+# ingest_noncurrent_version_expiration_days = 1
+
 # Custom domain (leave empty to use ALB URL)
 # Staging example:  domain = "staging.traceroot.ai"
 # Production example: domain = "app.traceroot.ai"
@@ -95,6 +103,11 @@ cache_node_type = "cache.t4g.micro"
 # web_replicas    = 1
 # rest_replicas   = 1
 # worker_replicas = 1
+
+# Worker pod CPU and memory (raise limits.memory if worker pods are OOMKilled)
+# worker_resources = {
+#   limits = { memory = "2Gi" }
+# }
 
 # Additional environment variables (escape hatch for anything not covered above)
 # Each entry must have either `value` (plain text) or `valueFrom` (secret reference), not both.
