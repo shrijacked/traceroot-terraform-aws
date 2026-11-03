@@ -109,14 +109,14 @@ variable "ingest_failed_expiration_days" {
   }
 }
 
-variable "noncurrent_version_expiration_days" {
+variable "ingest_noncurrent_version_expiration_days" {
   description = "Days to keep every noncurrent version of an object under events/ingest/ or events/failed/ in the S3 bucket, whether the object expired, was deleted or was overwritten. The bucket is versioned, so an expired or deleted batch's data is only removed when its noncurrent version expires."
   type        = number
   default     = 1
 
   validation {
-    condition     = var.noncurrent_version_expiration_days >= 1 && floor(var.noncurrent_version_expiration_days) == var.noncurrent_version_expiration_days
-    error_message = "noncurrent_version_expiration_days must be a whole number of days, at least 1."
+    condition     = var.ingest_noncurrent_version_expiration_days >= 1 && floor(var.ingest_noncurrent_version_expiration_days) == var.ingest_noncurrent_version_expiration_days
+    error_message = "ingest_noncurrent_version_expiration_days must be a whole number of days, at least 1."
   }
 }
 
@@ -352,68 +352,54 @@ variable "worker_replicas" {
 
 # --- Worker resources ---
 variable "worker_resources" {
-  description = "CPU and memory requests and limits for each worker pod. CPU is a number of cores, optionally with an m, u or n suffix (\"1\", \"0.5\", \".5\", \"250m\"). Memory is a number of bytes, optionally with a k, M, G, T, Ki, Mi, Gi or Ti suffix (\"512Mi\", \"1.5Gi\", \"2G\"). Each request must not exceed its limit. The default matches the chart's worker defaults."
+  description = "CPU and memory requests and limits for each worker pod. A value left out keeps its default, which matches the chart's worker defaults. CPU is whole cores or millicores (\"1\", \"250m\"). Memory is a whole number of Mi or Gi (\"512Mi\", \"2Gi\"), so 1.5Gi is written \"1536Mi\". Each request must not exceed its limit."
   type = object({
-    requests = object({
-      cpu    = string
-      memory = string
-    })
-    limits = object({
-      cpu    = string
-      memory = string
-    })
+    requests = optional(object({
+      cpu    = optional(string, "250m")
+      memory = optional(string, "512Mi")
+    }), {})
+    limits = optional(object({
+      cpu    = optional(string, "1")
+      memory = optional(string, "1Gi")
+    }), {})
   })
-  default = {
-    requests = {
-      cpu    = "250m"
-      memory = "512Mi"
-    }
-    limits = {
-      cpu    = "1"
-      memory = "1Gi"
-    }
-  }
+  default  = {}
   nullable = false
 
-  # A subset of Kubernetes quantity syntax: decimals and the usual suffixes, but
-  # no signs, no exponents, and no P, E, Pi or Ei. Memory rejects m, u and n,
-  # since "512m" is half a byte and almost always a mistake for M or Mi.
   validation {
     condition = alltrue([
       for q in [var.worker_resources.requests.cpu, var.worker_resources.limits.cpu] :
-      can(regex("^(?:[0-9]+[.]?[0-9]*|[.][0-9]+)(?:m|u|n)?$", q))
+      can(regex("^[0-9]+m?$", q))
     ])
-    error_message = "worker_resources CPU values must be a number of cores, optionally with an m, u or n suffix, such as \"1\", \"1.5\", \".5\" or \"250m\"."
+    error_message = "worker_resources CPU values must be whole cores or millicores, such as \"1\" or \"250m\"."
   }
 
   validation {
     condition = alltrue([
       for q in [var.worker_resources.requests.memory, var.worker_resources.limits.memory] :
-      can(regex("^(?:[0-9]+[.]?[0-9]*|[.][0-9]+)(?:k|M|G|T|Ki|Mi|Gi|Ti)?$", q))
+      can(regex("^[0-9]+(Mi|Gi)$", q))
     ])
-    error_message = "worker_resources memory values must be a number of bytes, optionally with a k, M, G, T, Ki, Mi, Gi or Ti suffix, such as \"512Mi\", \"1.5Gi\" or \"2G\"."
+    error_message = "worker_resources memory values must be a whole number of Mi or Gi, such as \"512Mi\" or \"2Gi\"."
   }
 
-  # Kubernetes rejects a pod whose request is above its limit. Each value is
-  # converted to billionths of a core or byte and rounded to a whole number, so
-  # two spellings of one amount (".3" and "300m") compare equal despite binary
-  # floating point. The parse accepts exactly what the checks above accept, so a
-  # value they reject fails to parse here and is reported only by them.
+  # Kubernetes rejects a pod whose request is above its limit. CPU is compared in
+  # millicores and memory in MiB, so both sides are whole numbers. A value the
+  # checks above reject becomes -1 and its pair is skipped, so it is reported once,
+  # by its format check. A value they accept is parsed with no fallback, so a
+  # parse failure is an error rather than a pass.
   validation {
-    condition = try(alltrue([
+    condition = alltrue([
       for pair in [
-        for kind in ["cpu", "memory"] : [
-          for q in [var.worker_resources.requests[kind], var.worker_resources.limits[kind]] :
-          floor(tonumber(regex("^([0-9]+[.]?[0-9]*|[.][0-9]+)[A-Za-z]*$", q)[0]) * {
-            cpu = { "" = 1e9, m = 1e6, u = 1e3, n = 1 }
-            memory = {
-              "" = 1e9, k = 1e12, M = 1e15, G = 1e18, T = 1e21,
-              Ki = 1024e9, Mi = 1048576e9, Gi = 1073741824e9, Ti = 1099511627776e9,
-            }
-          }[kind][regex("^(?:[0-9]+[.]?[0-9]*|[.][0-9]+)([A-Za-z]*)$", q)[0]] + 0.5)
-        ]
-      ] : pair[0] <= pair[1]
-    ]), true)
+        [
+          for q in [var.worker_resources.requests.cpu, var.worker_resources.limits.cpu] :
+          can(regex("^[0-9]+m?$", q)) ? tonumber(trimsuffix(q, "m")) * (endswith(q, "m") ? 1 : 1000) : -1
+        ],
+        [
+          for q in [var.worker_resources.requests.memory, var.worker_resources.limits.memory] :
+          can(regex("^[0-9]+(Mi|Gi)$", q)) ? tonumber(trimsuffix(trimsuffix(q, "Gi"), "Mi")) * (endswith(q, "Gi") ? 1024 : 1) : -1
+        ],
+      ] : contains(pair, -1) || pair[0] <= pair[1]
+    ])
     error_message = "worker_resources requests must not exceed the matching limits."
   }
 }
