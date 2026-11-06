@@ -36,7 +36,10 @@ resource "aws_ecr_repository" "services" {
 # push the running build out of the window. Rule 1 holds the build tagged
 # local.ecr_deployed_tag: an image matched by a higher-priority rule cannot be
 # expired by a lower-priority one, and only one image carries the tag at a time,
-# so the rule itself never expires anything.
+# so the rule itself never expires anything. Rule 2 still counts the deployed
+# build: while it is among the newest builds, the repository keeps exactly
+# ecr_image_retention_count builds; once newer pushes overtake it, it is kept as
+# one extra.
 resource "aws_ecr_lifecycle_policy" "services" {
   for_each   = aws_ecr_repository.services
   repository = each.value.name

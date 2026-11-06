@@ -50,9 +50,12 @@ rule set outside Terraform. To keep a custom rule, add it to
 
 Each repository keeps the last `ecr_image_retention_count` tagged builds and expires untagged
 manifests that no kept build references. The count is by push, not by deploy, so the policy also
-always keeps the build tagged `deployed`. After each deploy, move that tag onto the image you
-rolled out, in every repository. Without it, a few pushes that are not deployed can expire the
-running image, and pods that restart cannot pull it.
+never expires the build tagged `deployed`, even after newer pushes overtake it.
+
+The module does not set that tag. Your deploy pipeline must move `deployed` onto the image it
+rolled out, in every repository, after each successful deploy (traceroot-infra's `deploy.yml`
+does this). Without the tag, a few pushes that are not deployed can expire the running image, and
+pods that restart cannot pull it.
 
 ## Worker resources
 

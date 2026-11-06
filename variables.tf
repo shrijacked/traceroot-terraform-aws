@@ -56,7 +56,7 @@ variable "fargate_profile_namespaces" {
 
 # --- ECR ---
 variable "ecr_image_retention_count" {
-  description = "Number of tagged builds to keep per ECR repository; older ones are expired by the lifecycle policy. Counts builds, not manifests: the index, platform image and attestation of one push count once. The build tagged \"deployed\" is always kept on top of these. Keep at least 2 so the build before the running one stays available for rollback."
+  description = "Number of tagged builds to keep per ECR repository; older ones are expired by the lifecycle policy. Counts builds, not manifests: the index, platform image and attestation of one push count once. The build tagged \"deployed\" counts toward this number and is never expired, even after it falls out of the newest builds. Keep at least 2 so the build before the running one stays available for rollback."
   type        = number
   default     = 5
 
