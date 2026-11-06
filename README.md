@@ -46,6 +46,14 @@ S3 keeps one lifecycle configuration per bucket, so applying the module replaces
 rule set outside Terraform. To keep a custom rule, add it to
 `aws_s3_bucket_lifecycle_configuration.traceroot` in `s3.tf`.
 
+## ECR lifecycle
+
+Each repository keeps the last `ecr_image_retention_count` tagged builds and expires untagged
+manifests that no kept build references. The count is by push, not by deploy, so the policy also
+always keeps the build tagged `deployed`. After each deploy, move that tag onto the image you
+rolled out, in every repository. Without it, a few pushes that are not deployed can expire the
+running image, and pods that restart cannot pull it.
+
 ## Worker resources
 
 `worker_resources` sets the CPU and memory requests and limits of each worker pod. Raise the
