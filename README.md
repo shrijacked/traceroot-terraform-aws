@@ -10,7 +10,7 @@ ALB ingress, then installs the
 
 ```hcl
 module "traceroot" {
-  source = "github.com/traceroot-ai/traceroot-terraform-aws?ref=v1.6.0"
+  source = "github.com/traceroot-ai/traceroot-terraform-aws?ref=v1.7.0"
 
   environment = "production"
   name        = "traceroot-production"
