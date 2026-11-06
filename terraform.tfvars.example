@@ -31,8 +31,8 @@ vpc_cidr = "10.0.0.0/16"
 # EKS
 kubernetes_version = "1.32"
 
-# ECR (images kept per repository; each push may store more than one manifest)
-ecr_image_retention_count = 10
+# ECR (tagged builds kept per repository)
+ecr_image_retention_count = 5
 
 # RDS Aurora Serverless v2
 postgres_min_capacity = 0.5

@@ -10,7 +10,7 @@ ALB ingress, then installs the
 
 ```hcl
 module "traceroot" {
-  source = "github.com/traceroot-ai/traceroot-terraform-aws?ref=v1.6.0"
+  source = "github.com/traceroot-ai/traceroot-terraform-aws?ref=v1.7.0"
 
   environment = "production"
   name        = "traceroot-production"
@@ -45,6 +45,17 @@ defaults are in the `ingest_*_expiration_days` inputs in [`variables.tf`](variab
 S3 keeps one lifecycle configuration per bucket, so applying the module replaces any lifecycle
 rule set outside Terraform. To keep a custom rule, add it to
 `aws_s3_bucket_lifecycle_configuration.traceroot` in `s3.tf`.
+
+## ECR lifecycle
+
+Each repository keeps the last `ecr_image_retention_count` tagged builds and expires untagged
+manifests that no kept build references. The count is by push, not by deploy, so the policy also
+never expires the build tagged `deployed`, even after newer pushes overtake it.
+
+The module does not set that tag. Your deploy pipeline must move `deployed` onto the image it
+rolled out, in every repository, after each successful deploy (traceroot-infra's `deploy.yml`
+does this). Without the tag, a few pushes that are not deployed can expire the running image, and
+pods that restart cannot pull it.
 
 ## Worker resources
 
