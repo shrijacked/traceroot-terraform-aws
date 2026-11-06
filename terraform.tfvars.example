@@ -109,6 +109,13 @@ cache_node_type = "cache.t4g.micro"
 #   limits = { memory = "2Gi" }
 # }
 
+# Detector pod CPU and memory (raise memory if the detector crashes with "JavaScript heap out of memory";
+# on Fargate, raise requests too, since Fargate sizes the pod from its requests)
+# detector_resources = {
+#   requests = { cpu = "1", memory = "3Gi" }
+#   limits   = { cpu = "1", memory = "3Gi" }
+# }
+
 # Additional environment variables (escape hatch for anything not covered above)
 # Each entry must have either `value` (plain text) or `valueFrom` (secret reference), not both.
 # additional_env = [

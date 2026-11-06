@@ -90,11 +90,11 @@ detector:
   replicas: 1
   resources:
     requests:
-      cpu: "250m"
-      memory: "512Mi"
+      cpu: "${var.detector_resources.requests.cpu}"
+      memory: "${var.detector_resources.requests.memory}"
     limits:
-      cpu: "1"
-      memory: "1Gi"
+      cpu: "${var.detector_resources.limits.cpu}"
+      memory: "${var.detector_resources.limits.memory}"
 
 migrations:
   postgres:

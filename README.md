@@ -75,6 +75,27 @@ module "traceroot" {
 In a `.tfvars` file, put the same assignment at the top level. The defaults and accepted values
 are in [`variables.tf`](variables.tf).
 
+## Detector resources
+
+`detector_resources` sets the CPU and memory requests and limits of the detector pod. The
+detector is a Node.js process whose default heap size follows the container's memory, so raise
+the memory if detector pods crash with `JavaScript heap out of memory`. On Fargate, a pod is sized
+from its requests, so raise the requests along with the limits:
+
+```hcl
+module "traceroot" {
+  # ...
+
+  detector_resources = {
+    requests = { cpu = "1", memory = "3Gi" }
+    limits   = { cpu = "1", memory = "3Gi" }
+  }
+}
+```
+
+In a `.tfvars` file, put the same assignment at the top level. The defaults and accepted values
+are in [`variables.tf`](variables.tf).
+
 ## Requirements
 
 | | |
