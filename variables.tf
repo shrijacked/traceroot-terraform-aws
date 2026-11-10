@@ -404,6 +404,60 @@ variable "worker_resources" {
   }
 }
 
+# --- Detector resources ---
+variable "detector_resources" {
+  description = "CPU and memory requests and limits for each detector pod. A value left out keeps its default, which matches the chart's detector defaults. CPU is whole cores or millicores (\"1\", \"250m\"). Memory is a whole number of Mi or Gi (\"512Mi\", \"2Gi\"), so 1.5Gi is written \"1536Mi\". Each request must not exceed its limit."
+  type = object({
+    requests = optional(object({
+      cpu    = optional(string, "250m")
+      memory = optional(string, "512Mi")
+    }), {})
+    limits = optional(object({
+      cpu    = optional(string, "1")
+      memory = optional(string, "1Gi")
+    }), {})
+  })
+  default  = {}
+  nullable = false
+
+  validation {
+    condition = alltrue([
+      for q in [var.detector_resources.requests.cpu, var.detector_resources.limits.cpu] :
+      can(regex("^[0-9]+m?$", q))
+    ])
+    error_message = "detector_resources CPU values must be whole cores or millicores, such as \"1\" or \"250m\"."
+  }
+
+  validation {
+    condition = alltrue([
+      for q in [var.detector_resources.requests.memory, var.detector_resources.limits.memory] :
+      can(regex("^[0-9]+(Mi|Gi)$", q))
+    ])
+    error_message = "detector_resources memory values must be a whole number of Mi or Gi, such as \"512Mi\" or \"2Gi\"."
+  }
+
+  # Kubernetes rejects a pod whose request is above its limit. CPU is compared in
+  # millicores and memory in MiB, so both sides are whole numbers. A value the
+  # checks above reject becomes -1 and its pair is skipped, so it is reported once,
+  # by its format check. A value they accept is parsed with no fallback, so a
+  # parse failure is an error rather than a pass.
+  validation {
+    condition = alltrue([
+      for pair in [
+        [
+          for q in [var.detector_resources.requests.cpu, var.detector_resources.limits.cpu] :
+          can(regex("^[0-9]+m?$", q)) ? tonumber(trimsuffix(q, "m")) * (endswith(q, "m") ? 1 : 1000) : -1
+        ],
+        [
+          for q in [var.detector_resources.requests.memory, var.detector_resources.limits.memory] :
+          can(regex("^[0-9]+(Mi|Gi)$", q)) ? tonumber(trimsuffix(trimsuffix(q, "Gi"), "Mi")) * (endswith(q, "Gi") ? 1024 : 1) : -1
+        ],
+      ] : contains(pair, -1) || pair[0] <= pair[1]
+    ])
+    error_message = "detector_resources requests must not exceed the matching limits."
+  }
+}
+
 # --- ALB ---
 variable "alb_scheme" {
   description = "ALB scheme: internet-facing or internal"
