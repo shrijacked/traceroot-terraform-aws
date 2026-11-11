@@ -19,7 +19,7 @@ module "traceroot" {
   domain      = "traceroot.example.com"
   image_tag   = "sha-1a321eb"
 
-  traceroot_helm_chart_version = "1.0.0"
+  traceroot_helm_chart_version = "1.1.2"
 }
 ```
 

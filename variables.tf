@@ -128,9 +128,9 @@ variable "traceroot_helm_chart_repository" {
 }
 
 variable "traceroot_helm_chart_version" {
-  description = "Version of the TraceRoot Helm chart to deploy. Pin this; do not track latest."
+  description = "Version of the TraceRoot Helm chart to deploy. Pin this; do not track latest. Charts before 1.0.1 omit the ALB health-check paths, so every target is unhealthy."
   type        = string
-  default     = "1.0.0"
+  default     = "1.1.2"
 }
 
 # --- ClickHouse (EFS storage) ---
