@@ -27,14 +27,11 @@ output "namespace" {
 
 output "ecr_repositories" {
   description = "ECR repository URLs"
+  # Derived from the repositories themselves. A hand-written map dropped
+  # detector after that repository was added, so pushes from this output
+  # never published the detector image.
   value = {
-    web                = aws_ecr_repository.services["web"].repository_url
-    rest               = aws_ecr_repository.services["rest"].repository_url
-    worker             = aws_ecr_repository.services["worker"].repository_url
-    billing            = aws_ecr_repository.services["billing"].repository_url
-    agent              = aws_ecr_repository.services["agent"].repository_url
-    migrate-postgres   = aws_ecr_repository.services["migrate-postgres"].repository_url
-    migrate-clickhouse = aws_ecr_repository.services["migrate-clickhouse"].repository_url
+    for name, repo in aws_ecr_repository.services : name => repo.repository_url
   }
 }
 
